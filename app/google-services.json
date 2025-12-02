@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "254444220186",
+    "project_id": "smartcloset-282f3",
+    "storage_bucket": "smartcloset-282f3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:254444220186:android:b43eef8d7fe165fbc1c6a3",
+        "android_client_info": {
+          "package_name": "com.leonardospadoni.smartcloset"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEO_55iUM9kD9uNrgySHk6HM6UDa3j6Ys"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
