@@ -5,30 +5,42 @@ import base64
 import time
 
 app = Flask(__name__)
-DB_NAME = "smartcloset.db"
-# Percorso assoluto dove salvare le immagini (sostituisci 'tuousername' se necessario, ma di solito flask lo trova da solo se usiamo percorsi relativi corretti o static folder)
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static/uploads')
+
+# --- CONFIGURAZIONE PERCORSI ASSOLUTI (FIX PER PYTHONANYWHERE) ---
+# Calcola la cartella dove si trova questo file (es. /home/tuonome/mysite)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Percorso assoluto del Database
+DB_NAME = os.path.join(BASE_DIR, "smartcloset.db")
+
+# Percorso assoluto della cartella Immagini
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
 
 # Assicuriamoci che la cartella esista
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # --- GESTIONE DATABASE ---
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS clothes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
-            image_url TEXT NOT NULL,
-            category TEXT NOT NULL,
-            color TEXT,
-            season TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS clothes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                image_url TEXT NOT NULL,
+                category TEXT NOT NULL,
+                color TEXT,
+                season TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        print(f"Database creato/inizializzato in: {DB_NAME}")
+    except Exception as e:
+        print(f"Errore creazione DB: {e}")
 
+# Inizializza se non esiste
 if not os.path.exists(DB_NAME):
     init_db()
 
@@ -71,6 +83,10 @@ def add_cloth():
             # Costruisci l'URL pubblico (PythonAnywhere serve automaticamente la cartella /static)
             # Sostituisci 'tuousername' con il tuo vero username di PythonAnywhere
             username = os.environ.get('USERNAME') # Prende l'username dal sistema
+            # Fallback se la variabile d'ambiente non c'è (es. in locale)
+            if not username:
+                username = "tuousername"
+
             image_url = f"https://{username}[.pythonanywhere.com/static/uploads/](https://.pythonanywhere.com/static/uploads/){filename}"
 
         except Exception as e:
@@ -79,15 +95,18 @@ def add_cloth():
         return jsonify({"error": "Immagine mancante"}), 400
 
     # 2. SALVATAGGIO SU DB
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO clothes (user_id, image_url, category, color, season)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (data['user_id'], image_url, data.get('category', 'Other'), data.get('color', ''), data.get('season', 'All')))
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO clothes (user_id, image_url, category, color, season)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (data['user_id'], image_url, data.get('category', 'Other'), data.get('color', ''), data.get('season', 'All')))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        return jsonify({"error": f"Errore database: {str(e)}"}), 500
 
     return jsonify({"message": "Vestito salvato", "url": image_url}), 201
 
@@ -97,20 +116,23 @@ def get_clothes():
     if not user_id:
         return jsonify({"error": "User ID mancante"}), 400
 
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM clothes WHERE user_id = ?', (user_id,))
-    rows = cursor.fetchall()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM clothes WHERE user_id = ?', (user_id,))
+        rows = cursor.fetchall()
+        conn.close()
 
-    results = []
-    for row in rows:
-        results.append({
-            "id": row["id"],
-            "image_url": row["image_url"], # Sarà l'URL di PythonAnywhere
-            "category": row["category"],
-            "season": row["season"]
-        })
+        results = []
+        for row in rows:
+            results.append({
+                "id": row["id"],
+                "image_url": row["image_url"], # Sarà l'URL di PythonAnywhere
+                "category": row["category"],
+                "season": row["season"]
+            })
 
-    return jsonify(results), 200
+        return jsonify(results), 200
+    except Exception as e:
+        return jsonify({"error": f"Errore lettura DB: {str(e)}"}), 500
