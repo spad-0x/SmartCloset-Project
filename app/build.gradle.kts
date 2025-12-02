@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -65,17 +67,20 @@ dependencies {
     // IMMAGINI (Coil)
     implementation("io.coil-kt:coil-compose:2.5.0")
 
-    // FIREBASE (Solo Auth e BoM)
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-    implementation("com.google.firebase:firebase-auth")
-    // Rimosso firebase-storage
-
     // CAMERA
     val camerax_version = "1.3.1"
     implementation("androidx.camera:camera-core:${camerax_version}")
     implementation("androidx.camera:camera-camera2:${camerax_version}")
     implementation("androidx.camera:camera-lifecycle:${camerax_version}")
     implementation("androidx.camera:camera-view:${camerax_version}")
+
+    // FIREBASE
+    // Importa il BoM (Bill of Materials) - Gestisce le versioni
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+
+    // Aggiungi i prodotti Firebase che ti servono (senza specificare la versione)
+    implementation("com.google.firebase:firebase-auth")
+
 
 
 }
