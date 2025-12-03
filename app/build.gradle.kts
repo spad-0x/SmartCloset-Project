@@ -80,6 +80,7 @@ dependencies {
 
     // Aggiungi i prodotti Firebase che ti servono (senza specificare la versione)
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 
 
 
