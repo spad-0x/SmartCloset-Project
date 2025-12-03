@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import com.leonardospadoni.smartcloset.auth.LoginScreen
 import com.leonardospadoni.smartcloset.camera.CameraScreen
 import com.leonardospadoni.smartcloset.ui.HomeScreen
+import com.leonardospadoni.smartcloset.ui.OutfitEditorScreen
 import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
@@ -30,13 +31,12 @@ class MainActivity : ComponentActivity() {
 }
 
 enum class Screen {
-    LOGIN, HOME, CAMERA
+    LOGIN, HOME, CAMERA, EDITOR
 }
 
 @Composable
 fun AppNavigation() {
     val auth = FirebaseAuth.getInstance()
-    // Controlla lo stato iniziale
     var currentScreen by remember { mutableStateOf(if(auth.currentUser != null) Screen.HOME else Screen.LOGIN) }
 
     when(currentScreen) {
@@ -49,13 +49,17 @@ fun AppNavigation() {
                 onLogout = {
                     auth.signOut()
                     currentScreen = Screen.LOGIN
-                }
+                },
+                onOpenEditor = { currentScreen = Screen.EDITOR } // <--- 2. COLLEGA IL BOTTONE ALLA ROTTA
             )
         }
         Screen.CAMERA -> {
-            CameraScreen(
-                onBack = { currentScreen = Screen.HOME }
-            )
+            CameraScreen(onBack = { currentScreen = Screen.HOME })
+        }
+        Screen.EDITOR -> {
+            // 3. AGGIUNGI LA SCHERMATA EDITOR
+            // (Assicurati che importi com.leonardospadoni.smartcloset.ui.OutfitEditorScreen)
+            OutfitEditorScreen(onBack = { currentScreen = Screen.HOME })
         }
     }
 }

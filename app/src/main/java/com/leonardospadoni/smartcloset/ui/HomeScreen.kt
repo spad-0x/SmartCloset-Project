@@ -43,7 +43,8 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onFabClick: () -> Unit,
-    onLogout: () -> Unit // Callback per il logout
+    onLogout: () -> Unit, // Callback per il logout
+    onOpenEditor: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -165,6 +166,14 @@ fun HomeScreen(
                     // Altrimenti usa Icons.Default.Close o Icons.Default.AccountCircle
                     Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Esci")
                 }
+            }
+
+            Button(
+                onClick = onOpenEditor,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("✨ Crea Outfit (Editor) ✨")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
