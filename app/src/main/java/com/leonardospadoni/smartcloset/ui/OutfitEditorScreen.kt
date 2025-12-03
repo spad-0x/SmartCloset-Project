@@ -14,7 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallTopAppBar // IMPORTANTE
+import androidx.compose.material3.TopAppBar // IMPORTANTE
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,15 +54,21 @@ fun OutfitEditorScreen(
     // --- LOGICA SHAKE TO SHUFFLE ---
     val shakeDetector = remember { ShakeDetector(context) }
 
-    // Funzione per scegliere outfit casuale
+    // Funzione per scegliere outfit casuale INTELLIGENTE
     fun shuffleOutfit() {
         if (allClothes.isNotEmpty()) {
-            // Nota: Se avessimo le categorie corrette nel DB useremmo quelle.
-            // Per ora prendiamo 3 capi a caso dalla lista totale.
-            selectedTop = allClothes.randomOrNull()
-            selectedBottom = allClothes.randomOrNull()
-            selectedShoes = allClothes.randomOrNull()
-            Toast.makeText(context, "🔀 Outfit Shuffled!", Toast.LENGTH_SHORT).show()
+
+            // 1. Filtra per categoria
+            val tops = allClothes.filter { it.category == "Top" }
+            val bottoms = allClothes.filter { it.category == "Bottom" }
+            val shoes = allClothes.filter { it.category == "Shoes" }
+
+            // 2. Pesca un elemento random per ogni lista (se vuota, pesca da tutto)
+            selectedTop = tops.randomOrNull() ?: allClothes.randomOrNull()
+            selectedBottom = bottoms.randomOrNull() ?: allClothes.randomOrNull()
+            selectedShoes = shoes.randomOrNull() ?: allClothes.randomOrNull()
+
+            Toast.makeText(context, "✨ Outfit Generato!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -99,7 +105,7 @@ fun OutfitEditorScreen(
     // --- UI ---
     Scaffold(
         topBar = {
-            SmallTopAppBar(
+            TopAppBar(
                 title = { Text("Outfit Editor") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -150,14 +156,22 @@ fun OutfitEditorScreen(
 
             // Pulsanti Categorie (Semplificati per ora: pescano un random di quella categoria se esistesse, o random generico)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                CategoryButton("Top") { selectedTop = allClothes.randomOrNull() }
-                CategoryButton("Pants") { selectedBottom = allClothes.randomOrNull() }
-                CategoryButton("Shoes") { selectedShoes = allClothes.randomOrNull() }
+                // Ora i pulsanti pescano solo dalla loro categoria specifica
+                CategoryButton("Top") {
+                    val tops = allClothes.filter { it.category == "Top" }
+                    selectedTop = tops.randomOrNull() ?: allClothes.randomOrNull()
+                }
+                CategoryButton("Pants") {
+                    val bottoms = allClothes.filter { it.category == "Bottom" }
+                    selectedBottom = bottoms.randomOrNull() ?: allClothes.randomOrNull()
+                }
+                CategoryButton("Shoes") {
+                    val shoes = allClothes.filter { it.category == "Shoes" }
+                    selectedShoes = shoes.randomOrNull() ?: allClothes.randomOrNull()
+                }
             }
         }
     }

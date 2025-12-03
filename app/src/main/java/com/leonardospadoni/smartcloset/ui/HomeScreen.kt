@@ -37,6 +37,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,6 +143,47 @@ fun HomeScreen(
         }
     }
 
+    // STATO PER IL DIALOGO DI CANCELLAZIONE
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var clothToDelete by remember { mutableStateOf<Cloth?>(null) }
+
+    // Funzione per chiamare l'API di cancellazione
+    fun deleteCloth(cloth: Cloth) {
+        scope.launch {
+            try {
+                val response = RetrofitClient.instance.deleteCloth(cloth.image_url, userId)
+                if (response.isSuccessful) {
+                    Toast.makeText(context, "🗑️ Vestito eliminato!", Toast.LENGTH_SHORT).show()
+                    loadClothes() // Ricarica la lista per far sparire il vestito
+                } else {
+                    Toast.makeText(context, "Errore cancellazione", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Errore rete", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // DIALOGO DI CONFERMA
+    if (showDeleteDialog && clothToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Elimina Vestito") },
+            text = { Text("Sei sicuro di voler rimuovere questo capo dal tuo armadio?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleteCloth(clothToDelete!!)
+                        showDeleteDialog = false
+                    }
+                ) { Text("Elimina", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Annulla") }
+            }
+        )
+    }
+
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(onClick = onFabClick) {
@@ -198,7 +241,14 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(clothes) { cloth ->
-                        ClothItem(cloth)
+                        ClothItem(
+                            cloth = cloth,
+                            onLongClick = {
+                                // Al click lungo, salviamo quale vestito cancellare e apriamo il dialogo
+                                clothToDelete = cloth
+                                showDeleteDialog = true
+                            }
+                        )
                     }
                 }
             }
@@ -238,18 +288,55 @@ fun WeatherBanner(temp: Float?, description: String, city: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ClothItem(cloth: Cloth) {
-    Card(shape = RoundedCornerShape(8.dp), elevation = CardDefaults.cardElevation(2.dp)) {
+fun ClothItem(cloth: Cloth, onLongClick: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(2.dp),
+        modifier = Modifier.combinedClickable(
+            onClick = {}, // Click normale (puoi lasciarlo vuoto o aprire un dettaglio)
+            onLongClick = onLongClick // Click prolungato -> Cancellazione
+        )
+    ) {
         Column {
+            // AsyncImage con gestione errori migliorata
             AsyncImage(
-                model = cloth.image_url,
+                model = coil.request.ImageRequest.Builder(LocalContext.current)
+                    .data(cloth.image_url)
+                    .crossfade(true)
+                    // Se c'è errore, mostra un'icona rossa
+                    .error(android.R.drawable.ic_menu_report_image)
+                    .listener(
+                        onError = { _, result ->
+                            // Questo stamperà l'errore esatto nel Logcat di Android Studio
+                            android.util.Log.e("IMAGE_LOAD", "Errore caricamento: ${result.throwable.message} per URL: ${cloth.image_url}")
+                        }
+                    )
+                    .build(),
                 contentDescription = null,
-                modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)),
                 contentScale = ContentScale.Crop
             )
-            // Se la categoria è vuota o null, mettiamo "Altro"
-            Text(text = cloth.category.ifEmpty { "Capo" }, modifier = Modifier.padding(8.dp))
+
+            Text(
+                text = cloth.category.ifEmpty { "Capo" },
+                modifier = Modifier.padding(8.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            // DEBUG: Mostra l'URL a video (piccolissimo) per controllare se è giusto
+            // Rimuovi questa riga quando funziona tutto!
+//            Text(
+//                text = cloth.image_url,
+//                style = MaterialTheme.typography.labelSmall,
+//                color = androidx.compose.ui.graphics.Color.Gray,
+//                maxLines = 1,
+//                modifier = Modifier.padding(horizontal = 8.dp)
+//            )
         }
     }
 }

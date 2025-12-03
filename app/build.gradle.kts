@@ -82,6 +82,15 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.android.gms:play-services-location:21.0.1")
 
+    // Google ML Kit - Subject Segmentation (Per rimuovere lo sfondo)
+    implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
+
+    // Assicurati di avere anche coroutines play-services per facilitare i task asincroni (opzionale ma utile)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // Fix per LocalLifecycleOwner deprecated
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
+
 
 
 }

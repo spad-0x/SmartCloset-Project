@@ -6,133 +6,133 @@ import time
 
 app = Flask(__name__)
 
-# --- CONFIGURAZIONE PERCORSI ASSOLUTI (FIX PER PYTHONANYWHERE) ---
-# Calcola la cartella dove si trova questo file (es. /home/tuonome/mysite)
+# --- CONFIGURAZIONE ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Percorso assoluto del Database
 DB_NAME = os.path.join(BASE_DIR, "smartcloset.db")
-
-# Percorso assoluto della cartella Immagini
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static/uploads')
-
-# Assicuriamoci che la cartella esista
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# --- GESTIONE DATABASE ---
-def init_db():
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS clothes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id TEXT NOT NULL,
-                image_url TEXT NOT NULL,
-                category TEXT NOT NULL,
-                color TEXT,
-                season TEXT
-            )
-        ''')
-        conn.commit()
-        conn.close()
-        print(f"Database creato/inizializzato in: {DB_NAME}")
-    except Exception as e:
-        print(f"Errore creazione DB: {e}")
-
-# Inizializza se non esiste
+# --- DB INIT ---
 if not os.path.exists(DB_NAME):
-    init_db()
-
-# --- ENDPOINTS API ---
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS clothes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            image_url TEXT NOT NULL,
+            category TEXT NOT NULL,
+            color TEXT,
+            season TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 @app.route('/')
 def home():
-    return "SmartCloset Server (Local Storage) is Running!"
+    return "SmartCloset Server (Lite) is Running!"
 
 @app.route('/clothes', methods=['POST'])
 def add_cloth():
-    """
-    Riceve un JSON.
-    Payload atteso: {
-        "user_id": "...",
-        "image_base64": "stringa_lunghissima_base64...",
-        "category": "...",
-        ...
-    }
-    """
     data = request.json
-
-    if not data or 'user_id' not in data:
+    if not data or 'image_base64' not in data:
         return jsonify({"error": "Dati mancanti"}), 400
 
-    image_url = ""
-
-    # 1. GESTIONE IMMAGINE: Da Base64 a File Locale
-    if 'image_base64' in data and data['image_base64']:
-        try:
-            # Genera nome file unico usando il timestamp
-            filename = f"img_{int(time.time())}.jpg"
-            filepath = os.path.join(UPLOAD_FOLDER, filename)
-
-            # Decodifica la stringa e salva il file
-            img_data = base64.b64decode(data['image_base64'])
-            with open(filepath, 'wb') as f:
-                f.write(img_data)
-
-            # Costruisci l'URL pubblico (PythonAnywhere serve automaticamente la cartella /static)
-            # Sostituisci 'tuousername' con il tuo vero username di PythonAnywhere
-            username = os.environ.get('USERNAME') # Prende l'username dal sistema
-            # Fallback se la variabile d'ambiente non c'è (es. in locale)
-            if not username:
-                username = "tuousername"
-
-            image_url = f"https://{username}[.pythonanywhere.com/static/uploads/](https://.pythonanywhere.com/static/uploads/){filename}"
-
-        except Exception as e:
-            return jsonify({"error": f"Errore salvataggio immagine: {str(e)}"}), 500
-    else:
-        return jsonify({"error": "Immagine mancante"}), 400
-
-    # 2. SALVATAGGIO SU DB
     try:
+        # L'immagine arriva GIA' RITAGLIATA e in PNG dall'app Android
+        # La decodifichiamo e salviamo direttamente come file binario.
+        # Poiché l'app invia i byte di un PNG, salvare con estensione .png è corretto.
+
+        filename = f"img_{int(time.time())}.png"
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+
+        img_data = base64.b64decode(data['image_base64'])
+
+        with open(filepath, 'wb') as f:
+            f.write(img_data)
+
+        # COSTRUZIONE URL
+        # Usa os.environ.get('USERNAME') per essere dinamico, con fallback manuale
+        username = os.environ.get('USERNAME')
+        if not username:
+            username = "spad0x" # Metti qui il tuo username esatto per sicurezza
+
+        image_url = f"https://{username}.pythonanywhere.com/static/uploads/{filename}"
+
+        # SALVATAGGIO DB
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO clothes (user_id, image_url, category, color, season)
             VALUES (?, ?, ?, ?, ?)
-        ''', (data['user_id'], image_url, data.get('category', 'Other'), data.get('color', ''), data.get('season', 'All')))
-
+        ''', (data['user_id'], image_url, data.get('category', 'Uncategorized'), data.get('color', ''), data.get('season', 'All')))
         conn.commit()
         conn.close()
-    except Exception as e:
-        return jsonify({"error": f"Errore database: {str(e)}"}), 500
 
-    return jsonify({"message": "Vestito salvato", "url": image_url}), 201
+        return jsonify({"message": "Vestito salvato", "url": image_url}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/clothes', methods=['GET'])
 def get_clothes():
     user_id = request.args.get('user_id')
-    if not user_id:
-        return jsonify({"error": "User ID mancante"}), 400
+    if not user_id: return jsonify({"error": "User ID mancante"}), 400
+
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM clothes WHERE user_id = ?', (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    results = []
+    for row in rows:
+        results.append({
+            "id": row["id"],
+            "image_url": row["image_url"],
+            "category": row["category"],
+            "season": row["season"]
+        })
+    return jsonify(results), 200
+
+# --- NUOVO ENDPOINT PER CANCELLARE ---
+@app.route('/clothes', methods=['DELETE'])
+def delete_cloth():
+    user_id = request.args.get('user_id')
+    image_url = request.args.get('image_url')
+
+    if not user_id or not image_url:
+        return jsonify({"error": "Parametri mancanti"}), 400
+
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # 1. Trova il vestito nel DB usando l'URL
+    cursor.execute('SELECT * FROM clothes WHERE image_url = ? AND user_id = ?', (image_url, user_id))
+    cloth = cursor.fetchone()
+
+    if not cloth:
+        conn.close()
+        return jsonify({"error": "Vestito non trovato"}), 404
 
     try:
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM clothes WHERE user_id = ?', (user_id,))
-        rows = cursor.fetchall()
-        conn.close()
+        # Estrai il nome del file dall'URL per cancellarlo fisicamente
+        # Prende l'ultima parte dell'URL (es. img_12345.png)
+        filename = image_url.split('/')[-1]
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
 
-        results = []
-        for row in rows:
-            results.append({
-                "id": row["id"],
-                "image_url": row["image_url"], # Sarà l'URL di PythonAnywhere
-                "category": row["category"],
-                "season": row["season"]
-            })
-
-        return jsonify(results), 200
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            print(f"File rimosso: {filename}")
     except Exception as e:
-        return jsonify({"error": f"Errore lettura DB: {str(e)}"}), 500
+        print(f"Errore cancellazione file: {e}")
+
+    # 2. Cancella dal DB usando l'URL
+    cursor.execute('DELETE FROM clothes WHERE image_url = ? AND user_id = ?', (image_url, user_id))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Cancellato con successo"}), 200

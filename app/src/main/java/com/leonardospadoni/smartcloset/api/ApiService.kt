@@ -16,4 +16,10 @@ interface ApiService {
     // NUOVO: Scarica la lista
     @GET("clothes")
     suspend fun getClothes(@Query("user_id") userId: String): Response<List<Cloth>>
+
+    @retrofit2.http.DELETE("clothes")
+    suspend fun deleteCloth(
+        @retrofit2.http.Query("image_url") imageUrl: String,
+        @retrofit2.http.Query("user_id") userId: String
+    ): retrofit2.Response<Void>
 }
